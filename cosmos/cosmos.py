@@ -6,6 +6,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+def get_coordinate_column_names(cat):
+    if 'ra' in cat.keys() and 'dec' in cat.keys():
+        cols = ['ra', 'dec']
+    elif 'X_WORLD' in cat.keys() and 'Y_WORLD' in cat.keys():
+        cols = ['X_WORLD', 'Y_WORLD']
+    return cols
+
 def cat_to_sc(cat):
     """Extract positions from cat and return corresponding SkyCoord
     Parameters
@@ -18,11 +25,7 @@ def cat_to_sc(cat):
         the corresponding SkyCoord object
     """
 
-    if 'ra' in cat.keys() and 'dec' in cat.keys():
-        cols = ['ra', 'dec']
-    elif 'X_WORLD' in cat.keys() and 'Y_WORLD' in cat.keys():
-        cols = ['X_WORLD', 'Y_WORLD']
-
+    cols = get_coordinate_column_names(cat)
     ra_unit, dec_unit = cat[cols[0]].unit, cat[cols[1]].unit
     if ra_unit is None:
         warnings.warn('ra unit is not provided, assuming degrees')
@@ -49,10 +52,7 @@ def match_sources(catalog, reference, dist_threshold):
 
 def catalog_world_to_pix(catalog, wcs):
 
-    if 'ra' in catalog.keys() and 'dec' in catalog.keys():
-        cols = ['ra', 'dec']
-    elif 'X_WORLD' in catalog.keys() and 'Y_WORLD' in catalog.keys():
-        cols = ['X_WORLD', 'Y_WORLD']
+    cols = get_coordinate_column_names(cat)
 
     pos = np.array(wcs.wcs_world2pix(catalog[cols[0]], catalog[cols[1]], 0)).T
 
