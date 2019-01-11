@@ -1,5 +1,6 @@
 Cosmos
 ======
+|travis|
 
 `Cosmos` is a python package...
 
@@ -26,3 +27,5 @@ License
 
 This project is licensed under the MIT license.
 
+.. |travis| image:: https://travis-ci.org/pslustig/cosmos.svg?branch=master
+       :target: https://travis-ci.org/pslustig/cosmos
