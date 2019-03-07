@@ -4,6 +4,7 @@ import warnings
 import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
+from .zscale import zscale
 
 
 def get_coordinate_column_names(cat):
@@ -12,6 +13,7 @@ def get_coordinate_column_names(cat):
     elif 'X_WORLD' in cat.keys() and 'Y_WORLD' in cat.keys():
         cols = ['X_WORLD', 'Y_WORLD']
     return cols
+
 
 def cat_to_sc(cat):
     """Extract positions from cat and return corresponding SkyCoord
@@ -52,8 +54,7 @@ def match_sources(catalog, reference, dist_threshold):
 
 def catalog_world_to_pix(catalog, wcs):
 
-    cols = get_coordinate_column_names(cat)
-
+    cols = get_coordinate_column_names(catalog)
     pos = np.array(wcs.wcs_world2pix(catalog[cols[0]], catalog[cols[1]], 0)).T
 
     return pos
@@ -83,7 +84,8 @@ def scatter_catalog_in_image(catalog, wcs, image=None, ax=None,
         fig, ax = plt.subplots(1, 1)
 
     if image is not None:
-        ax.imshow(image, origin='lower', cmap='Greys')
+        vmin, vmax = zscale(image)
+        ax.imshow(image, origin='lower', cmap='Greys', vmin=vmin, vmax=vmax)
 
     ax.scatter(pospix[:, 0], pospix[:, 1], **kwargs)
 
