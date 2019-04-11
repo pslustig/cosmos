@@ -1,4 +1,4 @@
-from astropy.table import MaskedColumn
+from astropy.table import Table, MaskedColumn
 from astropy.coordinates import SkyCoord, match_coordinates_sky
 import warnings
 import astropy.units as u
@@ -13,6 +13,47 @@ def get_coordinate_column_names(cat):
     elif 'X_WORLD' in cat.keys() and 'Y_WORLD' in cat.keys():
         cols = ['X_WORLD', 'Y_WORLD']
     return cols
+
+
+def delete_unmatched_rows(catalog, reference, return_referenceorder=False):
+    catalog = catalog[~catalog[reference.meta['NAME']].mask]
+    reference = reference[catalog[reference.meta['NAME']]]
+
+    ret = catalog, reference
+    if return_referenceorder:
+        ret = catalog, reference, catalog[reference.meta['NAME']]
+
+    return ret
+
+
+def find_double_matches(catalog, matchcolname):
+    matchidx = catalog[matchcolname]
+    unique, inv, counts = np.unique(matchidx, return_inverse=True,
+                                    return_counts=True)
+    # get idx in unique array of sources with multiple matches
+    multipleidx = np.arange(len(counts))[counts > 1]
+    # get idx of lines in catalog that have multiple matches
+    doublelines = np.arange(len(catalog))[np.isin(inv, multipleidx)]
+
+    return doublelines, unique[counts > 1], counts[counts > 1]
+
+
+def mask_double_matches(catalog, reference=None, matchcolname=None,
+                        returnmaskonly=False):
+
+    if matchcolname is None:
+        matchcolname = reference.meta['NAME']
+    doublelines, _, _ = find_double_matches(catalog, matchcolname)
+
+    if not returnmaskonly:
+        catalog[matchcolname].mask[doublelines] = True
+    return doublelines
+
+
+def print_double_matches(catalog, reference):
+    doublelines, doublevalue, counts = find_double_matches(catalog, reference)
+    print('sources {} ({} in catalog) matched more than one time ({})'.format(
+          doublevalue.tolist(), doublelines, counts))
 
 
 def cat_to_sc(cat):
@@ -42,14 +83,48 @@ def cat_to_sc(cat):
     return coords
 
 
+def plot_match_coordinate_deviation(catalog1, catalog2):
+    '''
+    catalog1 and 2 must provide ra and dec columns with ra and dec in degrees
+    '''
+    # TODO: make coordinates first
+    try:
+        coords1 = SkyCoord(catalog1['X_WORLD_MATCHCORRECTED'],
+                           catalog1['Y_WORLD_MATCHCORRECTED'], unit='deg')
+        print('Using corrected coordinates for matchplot')
+    except KeyError:
+        coords1 = cat_to_sc(catalog1)
+
+    coords2 = cat_to_sc(catalog2)
+    x = (coords1.ra - coords2.ra).to_value(u.arcsec)
+    x *= np.cos(coords1.dec.to_value(u.rad))
+    y = (coords1.dec - coords2.dec).to_value(u.arcsec)
+
+    fig, ax = plt.subplots(1, 2, sharex=True, sharey=True)
+    ax[0].scatter(x, y, alpha=.3)
+    ax[1].hist2d(x, y, bins=100)
+
+    fs = 15
+    ax[0].set_xlabel('(ra1-ra1) * cos(dec1) [arcsec]', fontsize=fs)
+    ax[1].set_xlabel('(ra1-ra1) * cos(dec1) [arcsec]', fontsize=fs)
+    ax[0].set_ylabel('dec1-dec2 [arcsec]', fontsize=fs)
+
+    return ax
+
+
 def match_sources(catalog, reference, dist_threshold):
 
     catalog_sc = cat_to_sc(catalog)
     reference_sc = cat_to_sc(reference)
     idx, sep2d, _ = match_coordinates_sky(catalog_sc, reference_sc)
-    mask = sep2d > dist_threshold
+
+    # catalog = Table(catalog, masked=True)
+    mask = np.zeros(len(sep2d), dtype=bool)
+    if dist_threshold is not None:
+        mask = sep2d > dist_threshold
+
     catalog[reference.meta['NAME']] = MaskedColumn(idx, mask=mask)
-    return sep2d
+    return catalog, sep2d
 
 
 def catalog_world_to_pix(catalog, wcs):
