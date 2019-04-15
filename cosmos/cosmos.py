@@ -8,11 +8,15 @@ from .zscale import zscale
 
 
 def get_coordinate_column_names(cat):
-    if 'ra' in cat.keys() and 'dec' in cat.keys():
-        cols = ['ra', 'dec']
-    elif 'X_WORLD' in cat.keys() and 'Y_WORLD' in cat.keys():
-        cols = ['X_WORLD', 'Y_WORLD']
-    return cols
+
+    namepaires = (('ra', 'dec'), ('RA', 'DEC'), ('X_WORLD', 'Y_WORLD'))
+
+    for raname, decname in namepaires:
+        if (raname in cat.keys()) and (decname in cat.keys()):
+            return raname, decname
+
+    raise ValueError('Coordinate columns not found. Available keys '
+                     'are\n{}'.format(cat.keys()))
 
 
 def delete_unmatched_rows(catalog, reference, return_referenceorder=False):
